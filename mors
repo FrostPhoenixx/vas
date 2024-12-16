@@ -1,0 +1,80 @@
+'use strict';
+
+const { Contract } = require('fabric-contract-api');
+
+class TokenContract extends Contract {
+
+    // Initialize the ledger with some tokens (optional)
+    async initLedger(ctx) {
+        console.info('Initializing the ledger...');
+        const tokens = [
+            {
+                id: 'token1',
+                owner: 'user1',
+                amount: 100,
+            },
+            {
+                id: 'token2',
+                owner: 'user2',
+                amount: 200,
+            }
+        ];
+
+        for (let i = 0; i < tokens.length; i++) {
+            await ctx.stub.putState(tokens[i].id, Buffer.from(JSON.stringify(tokens[i])));
+        }
+        console.info('Ledger initialized');
+    }
+
+    // Mint new tokens
+    async mintToken(ctx, tokenId, owner, amount) {
+        console.info(`Minting new token ${tokenId} for ${owner} with amount ${amount}`);
+
+        // Check if token already exists
+        const existingToken = await ctx.stub.getState(tokenId);
+        if (existingToken && existingToken.length > 0) {
+            throw new Error(`Token with ID ${tokenId} already exists`);
+        }
+
+        // Create the token object
+        const newToken = {
+            id: tokenId,
+            owner: owner,
+            amount: parseInt(amount, 10),
+        };
+
+        // Store the new token on the ledger
+        await ctx.stub.putState(tokenId, Buffer.from(JSON.stringify(newToken)));
+        console.info(`Token ${tokenId} minted successfully`);
+    }
+
+    // Transfer tokens from one user to another
+    async transferToken(ctx, tokenId, newOwner) {
+        console.info(`Transferring token ${tokenId} to ${newOwner}`);
+
+        const tokenAsBytes = await ctx.stub.getState(tokenId);
+        if (!tokenAsBytes || tokenAsBytes.length === 0) {
+            throw new Error(`Token with ID ${tokenId} not found`);
+        }
+
+        const token = JSON.parse(tokenAsBytes.toString());
+        token.owner = newOwner;
+
+        await ctx.stub.putState(tokenId, Buffer.from(JSON.stringify(token)));
+        console.info(`Token ${tokenId} transferred to ${newOwner}`);
+    }
+
+    // Query the token by its ID
+    async queryToken(ctx, tokenId) {
+        console.info(`Querying token ${tokenId}`);
+
+        const tokenAsBytes = await ctx.stub.getState(tokenId);
+        if (!tokenAsBytes || tokenAsBytes.length === 0) {
+            throw new Error(`Token with ID ${tokenId} not found`);
+        }
+
+        return tokenAsBytes.toString();
+    }
+}
+
+module.exports = TokenContract;
